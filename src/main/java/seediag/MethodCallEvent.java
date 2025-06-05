@@ -9,15 +9,16 @@ import jdk.jfr.Event;
 
 @Name("see.methodcall")
 @Label("SEEBURGER Method Call Event")
-//@Category("CustomEvents")
+@Category("CustomEvents")
 @StackTrace(true)
 public class MethodCallEvent extends Event
 {
     public static void emit()
     {
+        //new RuntimeException("here").printStackTrace();
         MethodCallEvent event = new MethodCallEvent();
-        event.begin();
+        //event.begin();
         event.commit();
-        System.out.println("Sent " + event.isEnabled() + " " + event.shouldCommit());
+        //System.out.println("Sent " + event.isEnabled() + " " + event.shouldCommit());
     }
 }
