@@ -1,34 +1,21 @@
-= Trest Project
+= Agent-x: Simple JFR/Premain-Agent Testground
 
-This is a test project for a lightweight java agent instrumenting methods.
-The instrumentation is done with asm, the events are reported by JFR.
+This is a test project for a lightweight java pre-main Agent, instrumenting methods to collect call traces.
+The instrumentation is done with asm, the events are reported by custom JFR events.
 
 == Usage
 
 ```console
 > mvn clean verify
 > java -javaagent:.\target\agent-x-0.1.0.jar=TestApp:test .\TestApp.java
-OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-Transforming : class=TestApp loader=com.sun.tools.javac.launcher.Main$MemoryClassLoader@2133814f
 trans: test ()V
-Sent false false
-hello class class TestApp com.sun.tools.javac.launcher.Main$MemoryClassLoader@2133814f
-Sent false false
-hello class class TestApp com.sun.tools.javac.launcher.Main$MemoryClassLoader@2133814f
-Sent false false
-hello class class TestApp com.sun.tools.javac.launcher.Main$MemoryClassLoader@2133814f
+......
 ```
 
-It called TestApp#test 3 times, and every time a (ignored) JFR event was sent
+It called `TestApp#test` multiple times, and every time a (ignored) JFR event was submitted.
 
-However currently the class loading is not correctly set up, it crashes if JFR recording tries to activate:
 
-```console
-java -XX:StartFlightRecording=filename=out.jfr,settings=single.jfc TestApp.java
-hello class class TestApp com.sun.tools.javac.launcher.Main$MemoryClassLoader@7dc3712
-hello class class TestApp com.sun.tools.javac.launcher.Main$MemoryClassLoader@7dc3712
-hello class class TestApp com.sun.tools.javac.launcher.Main$MemoryClassLoader@7dc3712
-```
+However, when the Agent redefines all classes (returns `classFileBuffer` instead of `null` in `transform()`) it will make JFR crash when JFR recording and Agent is used:
 
 ```console
 > java -XX:StartFlightRecording=filename=out.jfr,settings=single.jfc -javaagent:.\target\agent-x-0.1.0.jar=TestApp:test .\TestApp.java
@@ -57,6 +44,38 @@ for thread 0x000002d188252d80
 [0.063s][info ][exceptions] Exception <a 'java/lang/ClassCircularityError'{0x0000000445e3b550}: java/lang/WeakPairMap$Pair$Weak>
  thrown in interpreter method <{method} {0x000002d1b8022ce0} 'implAddReads' '(Ljava/lang/Module;Z)V' in 'java/lang/Module'>
  at bci 45 for thread 0x000002d188252d80 (main)
+...
+```
+
+With `null` returned it works:
+
+```console
+> jfr summary .\out.jfr
+ Version: 2.1
+ Chunks: 1
+ Start: 2025-06-05 19:27:36 (UTC)
+ Duration: 6 s
+
+ Event Type                              Count  Size (bytes)
+==============================================
+ see.methodcall                             50           500
+ jdk.Checkpoint                             39         13231
+ jdk.Metadata                                1        103537
+ jdk.FileWrite                               0             0
+...
+
+> jfr print .\out.jfr
+see.methodcall {
+  startTime = 21:27:37.156 (2025-06-05)
+  eventThread = "main" (javaThreadId = 1)
+  stackTrace = [
+    seediag.MethodCallEvent.emit() line: 21
+    TestApp.test()
+    TestApp.main(String[]) line: 6
+    jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Object, Object[]) line: 103
+    java.lang.reflect.Method.invoke(Object, Object[]) line: 580
+  ]
+}
 ...
 ```
 

@@ -20,9 +20,7 @@ public class MethodCallTransformer implements ClassFileTransformer {
                             ProtectionDomain protectionDomain, byte[] classfileBuffer)
     {
 
-        if (!className.equals(targetClass)) return classfileBuffer;
-        System.out.println("Transforming : class=" + className + " loader=" + loader);
-
+        if (!className.equals(targetClass)) return null;
         ClassReader cr = new ClassReader(classfileBuffer);
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         ClassVisitor cv = new ClassVisitor(Opcodes.ASM9, cw) {
@@ -31,7 +29,7 @@ public class MethodCallTransformer implements ClassFileTransformer {
                                              String signature, String[] exceptions) {
                 MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
                 if (name.equals(targetMethod)) {
-System.out.println("trans: " + name + " " + descriptor);
+System.out.println("trans: " + name + " " + descriptor + " " + targetClass);
                     return new AdviceAdapter(Opcodes.ASM9, mv, access, name, descriptor) {
                         @Override
                         protected void onMethodEnter() {
